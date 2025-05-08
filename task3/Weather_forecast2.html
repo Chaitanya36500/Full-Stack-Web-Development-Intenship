@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Forecast</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f0f8ff;
+      color: #333;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      min-height: 100vh;
+    }
+    .left-panel {
+      background: #87cefa;
+      flex: 1;
+      padding: 30px;
+      color: #000;
+      min-width: 300px;
+    }
+    .right-panel {
+      flex: 2;
+      padding: 30px;
+      background: #ffffff;
+      min-width: 400px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: none;
+      font-size: 1rem;
+    }
+    button {
+      background-color: #2196f3;
+      color: white;
+      cursor: pointer;
+    }
+    .weather-main {
+      font-size: 3rem;
+      margin: 20px 0;
+    }
+    .highlight-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .highlight-card {
+      background: #b3e5fc;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .weekly-forecast {
+      margin-top: 30px;
+    }
+    .day-card {
+      background: #e1f5fe;
+      margin: 10px;
+      padding: 15px;
+      border-radius: 10px;
+      display: inline-block;
+      width: 130px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <input type="text" id="locationInput" placeholder="Enter city" />
+      <button onclick="getWeatherByCity()">Get Weather</button>
+      <button onclick="getWeatherByLocation()">Use My Location</button>
+      <div id="currentWeather"></div>
+    </div>
+
+    <div class="right-panel">
+      <h2>Today's Highlights</h2>
+      <div class="highlight-grid" id="highlights"></div>
+
+      <h2>This Week</h2>
+      <div id="weekly" class="weekly-forecast"></div>
+    </div>
+  </div>
+
+  <script>
+    const apiKey = 'f8d19072036879c27bf704399a23baef'; // Replace with your API key
+
+    async function getWeatherByCity() {
+      const city = document.getElementById('locationInput').value;
+      if (!city) return alert('Please enter a city.');
+      const url = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+      fetchWeather(url);
+    }
+
+    function getWeatherByLocation() {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
+        fetchWeather(url);
+      });
+    }
+
+    async function fetchWeather(url) {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.cod !== "200") return alert("Location not found");
+
+        const current = data.list[0];
+        document.getElementById("currentWeather").innerHTML = `
+          <div class="weather-main">${Math.round(current.main.temp)}°C</div>
+          <p>Feels like ${Math.round(current.main.feels_like)}°C</p>
+          <p>${current.weather[0].description}</p>
+          <p>${new Date(current.dt_txt).toLocaleString()}</p>
+          <p>${data.city.name}, ${data.city.country}</p>
+        `;
+
+        // Highlights
+        const sunrise = new Date(data.city.sunrise * 1000).toLocaleTimeString();
+        const sunset = new Date(data.city.sunset * 1000).toLocaleTimeString();
+        const highlights = [
+          { label: 'Humidity', value: current.main.humidity + '%', icon: '💧' },
+          { label: 'Wind Speed', value: current.wind.speed + ' m/s', icon: '💨' },
+          { label: 'Clouds', value: current.clouds.all + '%', icon: '☁️' },
+          { label: 'Pressure', value: current.main.pressure + ' hPa', icon: '🌡️' },
+          { label: 'Sunrise', value: sunrise, icon: '🌅' },
+          { label: 'Sunset', value: sunset, icon: '🌇' }
+        ];
+        document.getElementById("highlights").innerHTML = highlights.map(h => `
+          <div class="highlight-card">
+            <div style="font-size: 1.5rem;">${h.icon}</div>
+            <h4>${h.label}</h4>
+            <p style="font-size: 1.25rem;">${h.value}</p>
+          </div>
+        `).join('');
+
+        // Weekly
+        const dailyMap = {};
+        data.list.forEach(item => {
+          const date = item.dt_txt.split(' ')[0];
+          if (!dailyMap[date]) dailyMap[date] = item;
+        });
+        const weekly = Object.values(dailyMap).slice(0, 5);
+        document.getElementById("weekly").innerHTML = weekly.map(day => `
+          <div class="day-card">
+            <h4>${new Date(day.dt_txt).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</h4>
+            <div>${Math.round(day.main.temp)}°C</div>
+            <div>${day.weather[0].main}</div>
+          </div>
+        `).join('');
+
+      } catch (error) {
+        alert('Failed to fetch weather data.');
+      }
+    }
+  </script>
+</body>
+</html>
